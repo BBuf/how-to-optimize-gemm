@@ -45,9 +45,9 @@ After reading 6.4, rk3399 L2 cache is large, mc = 1MB / 256 = 4096
 
 
 */
-#define GEMM_N (240)  // GEMM_R
-#define GEMM_M (240)  // GEMM_P
-#define GEMM_K (240)  // GEMM_Q
+#define GEMM_N (384)  // GEMM_R
+#define GEMM_M (4096)  // GEMM_P
+#define GEMM_K (256)  // GEMM_Q
 #define GEMM_UNROLL (4)
 #define KERNEL_4x4  kernel_4x4_v3
 
@@ -92,68 +92,173 @@ void kernel_4x4_v3(int m, int n, int k,
     assert(m % 4 == 0 && n % 4 == 0 && k % 4 == 0);
 
     float *a = sa, *b = sb, *c = sc;
+
     int i, j;
     for(i = 0; i < m; i += 4) {
         for(j = 0; j < n; j += 4) {
-            __builtin_prefetch(b, 0, 3);
-            __builtin_prefetch(a, 0, 3);
-
-            float32x4_t v24 = {0};
-            float32x4_t v25 = {0};
-            float32x4_t v26 = {0};
-            float32x4_t v27 = {0};
-           
-            for(int l = 0; l < k; l += 4) {
-                float32x4_t v0 = vld1q_f32(b);
-                float32x4_t v16 = vld1q_f32(a);
-
-                v24 = vmlaq_lane_f32(v24, v0, vget_low_f32(v16), 0);
-                v25 = vmlaq_lane_f32(v25, v0, vget_low_f32(v16), 1);
-                v26 = vmlaq_lane_f32(v26, v0, vget_high_f32(v16), 0);
-                v27 = vmlaq_lane_f32(v27, v0, vget_high_f32(v16), 1);
-
-                float32x4_t v1 = vld1q_f32(b + 4);
-                float32x4_t v17 = vld1q_f32(a + 4);
-
-                v24 = vmlaq_lane_f32(v24, v1, vget_low_f32(v17), 0);
-                v25 = vmlaq_lane_f32(v25, v1, vget_low_f32(v17), 1);
-                v26 = vmlaq_lane_f32(v26, v1, vget_high_f32(v17), 0);
-                v27 = vmlaq_lane_f32(v27, v1, vget_high_f32(v17), 1);
-
-                float32x4_t v2 = vld1q_f32(b + 8);
-                float32x4_t v18 = vld1q_f32(a + 8);
-
-                v24 = vmlaq_lane_f32(v24, v2, vget_low_f32(v18), 0);
-                v25 = vmlaq_lane_f32(v25, v2, vget_low_f32(v18), 1);
-                v26 = vmlaq_lane_f32(v26, v2, vget_high_f32(v18), 0);
-                v27 = vmlaq_lane_f32(v27, v2, vget_high_f32(v18), 1);
-
-                float32x4_t v3 = vld1q_f32(b + 12);
-                float32x4_t v19 = vld1q_f32(a + 12);
-
-                v24 = vmlaq_lane_f32(v24, v3, vget_low_f32(v19), 0);
-                v25 = vmlaq_lane_f32(v25, v3, vget_low_f32(v19), 1);
-                v26 = vmlaq_lane_f32(v26, v3, vget_high_f32(v19), 0);
-                v27 = vmlaq_lane_f32(v27, v3, vget_high_f32(v19), 1);
-
-                __builtin_prefetch(b+16, 0, 3);
-                __builtin_prefetch(a+16, 0, 3);
-
-                b += 16;
-                a += 16;
-            } // endl
             
-            v24 = vaddq_f32(vld1q_f32(c), v24);
-            v25 = vaddq_f32(vld1q_f32(c + ldc), v25);
-            v26 = vaddq_f32(vld1q_f32(c + 2*ldc), v26);
-            v27 = vaddq_f32(vld1q_f32(c + 3*ldc), v27);
+            float *destptr0 = c;
+            float *destptr1 = c + ldc;
+            float *destptr2 = c + 2 * ldc;
+            float *destptr3 = c + 3 * ldc;
+            const float *r0 = b;
+            const float *r1 = a;
 
-            vst1q_f32(c, v24);
-            vst1q_f32(c + ldc, v25);
-            vst1q_f32(c + 2 * ldc, v26);
-            vst1q_f32(c + 3 * ldc, v27);
+            int tmpk = k;
+
+            if(tmpk > 0){
+                asm volatile(
+                    // float *destptr0 = c;
+                    "vld1.f32   {d16-d17}, [%1]       \n"
+
+                    // float *destptr1 = c + ldc;
+                    "vld1.f32   {d18-d19}, [%2]       \n"
+
+                    // float *destptr2 = c + 2 * ldc;
+                    "vld1.f32   {d20-d21}, [%3]       \n"
+
+                    // float *destptr3 = c + 3 * ldc;
+                    "vld1.f32   {d22-d23}, [%4]       \n"
+
+                    "0:                               \n"
+
+                    "pld        [%5, #128]            \n"
+                    "vld1.f32   {d0-d1}, [%5]!        \n"
+
+                    "pld        [%6, #128]            \n"
+                    "vld1.f32   {d8-d9}, [%6]!        \n"
+
+                    "vmla.f32   q8, q0, d8[0]         \n"
+                    "vmla.f32   q9, q0, d8[1]         \n"
+                    "vmla.f32   q10, q0, d9[0]        \n"
+                    "vmla.f32   q11, q0, d9[1]        \n"
+
+                    "pld        [%5, #128]            \n"
+                    "vld1.f32   {d2-d3}, [%5]!        \n"
+
+                    "pld        [%6, #128]            \n"
+                    "vld1.f32   {d10-d11}, [%6]!      \n"
+
+                    "vmla.f32   q8, q1, d10[0]        \n"
+                    "vmla.f32   q9, q1, d10[1]        \n"
+                    "vmla.f32   q10, q1, d11[0]       \n"
+                    "vmla.f32   q11, q1, d11[1]       \n"
+
+                    "pld        [%5, #128]            \n"
+                    "vld1.f32   {d4-d5}, [%5]!        \n"
+
+                    "pld        [%6, #128]            \n"
+                    "vld1.f32   {d12-d13}, [%6]!      \n"
+
+                    "vmla.f32   q8, q2, d12[0]        \n"
+                    "vmla.f32   q9, q2, d12[1]        \n"
+                    "vmla.f32   q10, q2, d13[0]       \n"
+                    "vmla.f32   q11, q2, d13[1]       \n"
+
+                    "pld        [%5, #128]            \n"
+                    "vld1.f32   {d6-d7}, [%5]!        \n"
+
+                    "pld        [%6, #128]            \n"
+                    "vld1.f32   {d14-d15}, [%6]!      \n"
+
+                    "vmla.f32   q8, q3, d14[0]        \n"
+                    "vmla.f32   q9, q3, d14[1]        \n"
+                    "vmla.f32   q10, q3, d15[0]       \n"
+                    "vmla.f32   q11, q3, d15[1]       \n"
+
+                    // k-=4
+                    "subs       %0, #4                \n"
+                    "bne        0b                    \n"
+
+                    // *destptr0 += sum0;
+                    "vst1.f32   {d16-d17}, [%1]      \n"
+                    // *destptr1 += sum1;
+                    "vst1.f32   {d18-d19}, [%2]      \n"
+                    // *destptr2 += sum2;
+                    "vst1.f32   {d20-d21}, [%3]      \n"
+                    // *destptr3 += sum3;
+                    "vst1.f32   {d22-d23}, [%4]      \n"
+
+                    : "=r"(tmpk),      // %0
+                    "=r"(destptr0), // %1
+                    "=r"(destptr1), // %2
+                    "=r"(destptr2), // %3
+                    "=r"(destptr3), // %4
+                    "=r"(r0),      // %5
+                    "=r"(r1) //%6
+                    : "0"(tmpk),
+                    "1"(destptr0),
+                    "2"(destptr1),
+                    "3"(destptr2),
+                    "4"(destptr3),
+                    "5"(r0),
+                    "6"(r1)
+
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
+                );
+            }
+            
+            b += k * 4;
+
+            // __builtin_prefetch(b, 0, 3);
+            // __builtin_prefetch(a, 0, 3);
+
+            // float32x4_t v24 = vld1q_f32(c);
+            // float32x4_t v25 = vld1q_f32(c + ldc);
+            // float32x4_t v26 = vld1q_f32(c + 2*ldc);
+            // float32x4_t v27 = vld1q_f32(c + 3*ldc);
+           
+            // for(int l = 0; l < k; l += 4) {
+            //     float32x4_t v0 = vld1q_f32(b);
+            //     float32x4_t v16 = vld1q_f32(a);
+
+            //     v24 = vmlaq_lane_f32(v24, v0, vget_low_f32(v16), 0);
+            //     v25 = vmlaq_lane_f32(v25, v0, vget_low_f32(v16), 1);
+            //     v26 = vmlaq_lane_f32(v26, v0, vget_high_f32(v16), 0);
+            //     v27 = vmlaq_lane_f32(v27, v0, vget_high_f32(v16), 1);
+
+            //     float32x4_t v1 = vld1q_f32(b + 4);
+            //     float32x4_t v17 = vld1q_f32(a + 4);
+
+            //     v24 = vmlaq_lane_f32(v24, v1, vget_low_f32(v17), 0);
+            //     v25 = vmlaq_lane_f32(v25, v1, vget_low_f32(v17), 1);
+            //     v26 = vmlaq_lane_f32(v26, v1, vget_high_f32(v17), 0);
+            //     v27 = vmlaq_lane_f32(v27, v1, vget_high_f32(v17), 1);
+
+            //     float32x4_t v2 = vld1q_f32(b + 8);
+            //     float32x4_t v18 = vld1q_f32(a + 8);
+
+            //     v24 = vmlaq_lane_f32(v24, v2, vget_low_f32(v18), 0);
+            //     v25 = vmlaq_lane_f32(v25, v2, vget_low_f32(v18), 1);
+            //     v26 = vmlaq_lane_f32(v26, v2, vget_high_f32(v18), 0);
+            //     v27 = vmlaq_lane_f32(v27, v2, vget_high_f32(v18), 1);
+
+            //     float32x4_t v3 = vld1q_f32(b + 12);
+            //     float32x4_t v19 = vld1q_f32(a + 12);
+
+            //     v24 = vmlaq_lane_f32(v24, v3, vget_low_f32(v19), 0);
+            //     v25 = vmlaq_lane_f32(v25, v3, vget_low_f32(v19), 1);
+            //     v26 = vmlaq_lane_f32(v26, v3, vget_high_f32(v19), 0);
+            //     v27 = vmlaq_lane_f32(v27, v3, vget_high_f32(v19), 1);
+
+            //     // __builtin_prefetch(b+16, 0, 3);
+            //     // __builtin_prefetch(a+16, 0, 3);
+
+            //     b += 16;
+            //     a += 16;
+            // } // endl
+            
+            // v24 = vaddq_f32(vld1q_f32(c), v24);
+            // v25 = vaddq_f32(vld1q_f32(c + ldc), v25);
+            // v26 = vaddq_f32(vld1q_f32(c + 2*ldc), v26);
+            // v27 = vaddq_f32(vld1q_f32(c + 3*ldc), v27);
+
+            // vst1q_f32(c, v24);
+            // vst1q_f32(c + ldc, v25);
+            // vst1q_f32(c + 2 * ldc, v26);
+            // vst1q_f32(c + 3 * ldc, v27);
             c += 4;
-            a -= 4*k;
+            // a -= 4 * k;
         } // endj
         sc += ldc*4;
         c = sc;;
