@@ -98,6 +98,8 @@ fmla: 4x2(mul+add)*1.8gHz=14.4gFLOPs
 |MMult_4x4_11.h|NEON指令集优化, 并且为了保持较小问题规模所获得的性能，我们分块矩阵C（以及相应的A和B） |2.6gflops|23.8%|1|
 |MMult_4x4_13.h|NEON指令集优化, 对矩阵A和B进行Pack，这样就可以连续访问内存|2.6gflops|23.8%|1|
 |MMult_4x4_18.h|NEON指令集优化，汇编优化，精细的Cache控制|3.0gflops|27.5%|1|
+|conv1x1s1.h（version1）|一次计算多行，neon汇编优化|3.4gflops|31.0%|1|
+|conv1x1s1.h（version2）|pack，neon汇编优化|4.9gflops|45%|1|
 
 ## armv8a
 

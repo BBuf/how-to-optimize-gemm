@@ -21,7 +21,8 @@
 // #include "MMult_4x4_12.h"
 // #include "MMult_4x4_13.h"
 // #include "MMult_4x4_14.h"
-#include "MMult_4x4_18.h"
+// #include "MMult_4x4_18.h"
+#include "convolution1x1s1.h"
 
 #include "dclock.h"
 using namespace std;
@@ -79,7 +80,7 @@ int m, n, k, lda, ldb, ldc;
 
 double time_tmp, time_best, gflops, diff;
 
-float *a, *b, *c, *prec, *nowc;    
+float *a, *b, *c, *prec, *nowc, *transform;    
 
 int main(){
 
@@ -100,6 +101,7 @@ int main(){
         c = (float *)malloc(ldc * n * sizeof(float));
         prec = (float *)malloc(ldc * n * sizeof(float));
         nowc = (float *)malloc(ldc * n * sizeof(float));
+        transform = (float *)malloc((m%4 + m/4) * (m/4 + m%4) * 4 * 4 * sizeof(float));
         // 随机填充矩阵
         random_matrix(m, k, a, lda);
         random_matrix(k, n, b, ldb);
@@ -112,6 +114,8 @@ int main(){
         // 以nowc为基准，判断矩阵运行算结果是否正确
         MatrixMultiply(m, n, k, a, lda, b, ldb, nowc, ldc);
 
+        conv1x1s1SgemmTransformKenel(a, transform, k, m);
+
         // 循环20次，以最快的运行时间为结果
         for(int j=0; j < 20; j++){
             
@@ -119,7 +123,8 @@ int main(){
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-            MY_MMult_4x4_18(m, n, k, a, lda, b, ldb, c, ldc);
+            //MY_MMult_4x4_18(m, n, k, a, lda, b, ldb, c, ldc);
+            conv1x1s1SgemmNeon(b, 1, n, k, transform, c, 1, n, m);
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
