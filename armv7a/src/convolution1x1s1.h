@@ -586,9 +586,123 @@ void conv1x1s1SgemmTransformKenel(float *const &kernel, float* &dest, const int 
         }
 }
 
+void conv1x1s1SgemmTransformInput(float *const &src, const int &inWidth, const int &inHeight,  const int &inChannel, float* &src_tm, 
+                            const int &outWidth, const int &outHeight, const int &outChannel){
+    int inSize = inHeight * inWidth;
+    int outSize = outHeight * outWidth;
+    // transformed kernel
+    int kernelSize = 4 * 4 * (inChannel / 4 + inChannel%4);
+
+    // pack input start
+    int nnSize = outSize >> 3;
+    int remainSize = nnSize << 3;
+
+    int src_tm_channel = outSize / 8 + (outSize % 8) / 4 + outSize % 4;
+    int src_tm_h = 8 * 4;
+    int src_tm_w = inChannel/4+inChannel%4;
+    int src_tm_size = src_tm_h * src_tm_w;
+    //float *src_tm = new float[src_tm_channel * src_tm_size];
+
+#if USE_OMP
+    #pragma omp parallel for num_threads(OMP_THREAD)
+#endif
+    for(int i = 0; i < nnSize; i++){
+        int newi = i << 3;
+        const float* srcptr = src + newi;
+
+        float *src_tm_ptr = src_tm + (newi / 8) * src_tm_size;
+
+        for(int q = 0; q < inChannel; q++){
+#if USE_NEON
+            asm volatile(
+                "pld        [%0, #256]          \n"
+                "vld1.f32   {d0-d3}, [%0]       \n"
+                "vst1.f32   {d0-d3}, [%1]!      \n"
+                : "=r"(srcptr),  // %0
+                "=r"(src_tm_ptr) // %1
+                : "0"(srcptr),
+                "1"(src_tm_ptr)
+                : "memory", "q0", "q1"
+            );
+#else
+            src_tm_ptr[0] = srcptr[0];
+            src_tm_ptr[1] = srcptr[1];
+            src_tm_ptr[2] = srcptr[2];
+            src_tm_ptr[3] = srcptr[3];
+            src_tm_ptr[4] = srcptr[4];
+            src_tm_ptr[5] = srcptr[5];
+            src_tm_ptr[6] = srcptr[6];
+            src_tm_ptr[7] = srcptr[7];
+            src_tm_ptr += 8;
+#endif
+            srcptr += outSize;
+        }
+
+    }
+
+    nnSize = (outSize - remainSize) >> 2;
+
+#if USE_OMP
+    #pragma omp parallel for num_threads(OMP_THREAD)
+#endif
+    for(int i = 0; i < nnSize; i++){
+        int newi = remainSize + i * 4;
+
+        const float* srcptr = src + newi;
+
+        float *src_tm_ptr = src_tm + (newi / 8 + (newi % 8) / 4) * src_tm_size;
+
+        for(int q = 0; q < inChannel; q++){
+#if USE_NEON
+            asm volatile(
+                "pld        [%0, #128]          \n"
+                "vld1.f32   {d0-d1}, [%0]       \n"
+                "vst1.f32   {d0-d1}, [%1]!      \n"
+                : "=r"(srcptr),  // %0
+                "=r"(src_tm_ptr) // %1
+                : "0"(srcptr),
+                "1"(src_tm_ptr)
+                : "memory", "q0"
+            );
+#else
+            src_tm_ptr[0] = srcptr[0];
+            src_tm_ptr[1] = srcptr[1];
+            src_tm_ptr[2] = srcptr[2];
+            src_tm_ptr[3] = srcptr[3];
+            src_tm_ptr += 4;
+#endif
+            srcptr += outSize;
+        }
+    }
+
+    remainSize += nnSize << 2;
+
+#if USE_OMP
+    #pragma omp parallel for num_threads(OMP_THREAD)
+#endif
+
+    for(int i = remainSize; i < outSize; i++){
+        int newi = i;
+
+        const float* srcptr = src + newi;
+
+        float *src_tm_ptr = src_tm + (newi / 8 + (newi % 8) / 4 + newi % 4) * src_tm_size;
+
+        for(int q = 0; q < inChannel; q++){
+
+            src_tm_ptr[0] = srcptr[0];
+
+            src_tm_ptr += 1;
+            srcptr += outSize;
+        }
+    }
+
+    // pack input end
+}
+
 // pack 8x4
 // shape[c, h, w]: [outSize / 8 + (outSize % 8) / 4 + outSize % 4, 8*4, inChannel/4+inChannel%4]
-void conv1x1s1SgemmNeon(float *const &src, const int &inWidth, const int &inHeight,  const int &inChannel, float *const &kernel,
+void conv1x1s1SgemmNeon(float *const &src, float *const &src_tm ,const int &inWidth, const int &inHeight,  const int &inChannel, float *const &kernel,
                                  float* &dest, const int &outWidth, const int &outHeight, const int &outChannel){
         int inSize = inHeight * inWidth;
         int outSize = outHeight * outWidth;
@@ -603,101 +717,101 @@ void conv1x1s1SgemmNeon(float *const &src, const int &inWidth, const int &inHeig
         int src_tm_h = 8 * 4;
         int src_tm_w = inChannel/4+inChannel%4;
         int src_tm_size = src_tm_h * src_tm_w;
-        float *src_tm = new float[src_tm_channel * src_tm_size];
 
-#if USE_OMP
-    #pragma omp parallel for num_threads(OMP_THREAD)
-#endif
-        for(int i = 0; i < nnSize; i++){
-            int newi = i << 3;
-            const float* srcptr = src + newi;
+//         float *src_tm = new float[src_tm_channel * src_tm_size];
+// #if USE_OMP
+//     #pragma omp parallel for num_threads(OMP_THREAD)
+// #endif
+//         for(int i = 0; i < nnSize; i++){
+//             int newi = i << 3;
+//             const float* srcptr = src + newi;
 
-            float *src_tm_ptr = src_tm + (newi / 8) * src_tm_size;
+//             float *src_tm_ptr = src_tm + (newi / 8) * src_tm_size;
 
-            for(int q = 0; q < inChannel; q++){
-#if USE_NEON
-                asm volatile(
-                    "pld        [%0, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%0]       \n"
-                    "vst1.f32   {d0-d3}, [%1]!      \n"
-                    : "=r"(srcptr),  // %0
-                    "=r"(src_tm_ptr) // %1
-                    : "0"(srcptr),
-                    "1"(src_tm_ptr)
-                    : "memory", "q0", "q1"
-                );
-#else
-                src_tm_ptr[0] = srcptr[0];
-                src_tm_ptr[1] = srcptr[1];
-                src_tm_ptr[2] = srcptr[2];
-                src_tm_ptr[3] = srcptr[3];
-                src_tm_ptr[4] = srcptr[4];
-                src_tm_ptr[5] = srcptr[5];
-                src_tm_ptr[6] = srcptr[6];
-                src_tm_ptr[7] = srcptr[7];
-                src_tm_ptr += 8;
-#endif
-                srcptr += outSize;
-            }
+//             for(int q = 0; q < inChannel; q++){
+//     #if USE_NEON
+//                 asm volatile(
+//                     "pld        [%0, #256]          \n"
+//                     "vld1.f32   {d0-d3}, [%0]       \n"
+//                     "vst1.f32   {d0-d3}, [%1]!      \n"
+//                     : "=r"(srcptr),  // %0
+//                     "=r"(src_tm_ptr) // %1
+//                     : "0"(srcptr),
+//                     "1"(src_tm_ptr)
+//                     : "memory", "q0", "q1"
+//                 );
+//     #else
+//                 src_tm_ptr[0] = srcptr[0];
+//                 src_tm_ptr[1] = srcptr[1];
+//                 src_tm_ptr[2] = srcptr[2];
+//                 src_tm_ptr[3] = srcptr[3];
+//                 src_tm_ptr[4] = srcptr[4];
+//                 src_tm_ptr[5] = srcptr[5];
+//                 src_tm_ptr[6] = srcptr[6];
+//                 src_tm_ptr[7] = srcptr[7];
+//                 src_tm_ptr += 8;
+//     #endif
+//                 srcptr += outSize;
+//             }
 
-        }
+//         }
 
-        nnSize = (outSize - remainSize) >> 2;
+//         nnSize = (outSize - remainSize) >> 2;
 
-#if USE_OMP
-    #pragma omp parallel for num_threads(OMP_THREAD)
-#endif
-        for(int i = 0; i < nnSize; i++){
-            int newi = remainSize + i * 4;
+//     #if USE_OMP
+//     #pragma omp parallel for num_threads(OMP_THREAD)
+//     #endif
+//         for(int i = 0; i < nnSize; i++){
+//             int newi = remainSize + i * 4;
 
-            const float* srcptr = src + newi;
+//             const float* srcptr = src + newi;
 
-            float *src_tm_ptr = src_tm + (newi / 8 + (newi % 8) / 4) * src_tm_size;
+//             float *src_tm_ptr = src_tm + (newi / 8 + (newi % 8) / 4) * src_tm_size;
 
-            for(int q = 0; q < inChannel; q++){
-#if USE_NEON
-                asm volatile(
-                    "pld        [%0, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%0]       \n"
-                    "vst1.f32   {d0-d1}, [%1]!      \n"
-                    : "=r"(srcptr),  // %0
-                    "=r"(src_tm_ptr) // %1
-                    : "0"(srcptr),
-                    "1"(src_tm_ptr)
-                    : "memory", "q0"
-                );
-#else
-                src_tm_ptr[0] = srcptr[0];
-                src_tm_ptr[1] = srcptr[1];
-                src_tm_ptr[2] = srcptr[2];
-                src_tm_ptr[3] = srcptr[3];
-                src_tm_ptr += 4;
-#endif
-                srcptr += outSize;
-            }
-        }
+//             for(int q = 0; q < inChannel; q++){
+//     #if USE_NEON
+//                 asm volatile(
+//                     "pld        [%0, #128]          \n"
+//                     "vld1.f32   {d0-d1}, [%0]       \n"
+//                     "vst1.f32   {d0-d1}, [%1]!      \n"
+//                     : "=r"(srcptr),  // %0
+//                     "=r"(src_tm_ptr) // %1
+//                     : "0"(srcptr),
+//                     "1"(src_tm_ptr)
+//                     : "memory", "q0"
+//                 );
+//     #else
+//                 src_tm_ptr[0] = srcptr[0];
+//                 src_tm_ptr[1] = srcptr[1];
+//                 src_tm_ptr[2] = srcptr[2];
+//                 src_tm_ptr[3] = srcptr[3];
+//                 src_tm_ptr += 4;
+//     #endif
+//                 srcptr += outSize;
+//             }
+//         }
 
-        remainSize += nnSize << 2;
+//         remainSize += nnSize << 2;
 
-#if USE_OMP
-    #pragma omp parallel for num_threads(OMP_THREAD)
-#endif
+//     #if USE_OMP
+//     #pragma omp parallel for num_threads(OMP_THREAD)
+//     #endif
 
-        for(int i = remainSize; i < outSize; i++){
-            int newi = i;
+//         for(int i = remainSize; i < outSize; i++){
+//             int newi = i;
 
-            const float* srcptr = src + newi;
+//             const float* srcptr = src + newi;
 
-            float *src_tm_ptr = src_tm + (newi / 8 + (newi % 8) / 4 + newi % 4) * src_tm_size;
+//             float *src_tm_ptr = src_tm + (newi / 8 + (newi % 8) / 4 + newi % 4) * src_tm_size;
 
-            for(int q = 0; q < inChannel; q++){
+//             for(int q = 0; q < inChannel; q++){
 
-                src_tm_ptr[0] = srcptr[0];
+//                 src_tm_ptr[0] = srcptr[0];
 
-                src_tm_ptr += 1;
-                srcptr += outSize;
-            }
-        }
+//                 src_tm_ptr += 1;
+//                 srcptr += outSize;
+//             }
+//         }
 
         // pack input end
 
