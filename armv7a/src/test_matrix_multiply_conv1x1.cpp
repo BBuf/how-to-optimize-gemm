@@ -23,7 +23,7 @@
 // #include "MMult_4x4_14.h"
 // #include "MMult_4x4_18.h"
 #include "MMult_4x4_19.h"
-// #include "convolution1x1s1.h"
+#include "convolution1x1s1.h"
 
 #include "dclock.h"
 using namespace std;
