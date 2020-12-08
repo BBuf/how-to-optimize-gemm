@@ -443,7 +443,7 @@ void packB_4(int k, int n, float* from, int ldb, float* to) {
 }
 
 /* Suppose that m%4==0 and n%4==0 and k%4==0, avoiding process boundary !! */
-void MY_MMult_19(int m, int n, int k, float *  a, int lda,
+void MY_MMult_4x4_19(int m, int n, int k, float *  a, int lda,
                                    float *  b, int ldb,
                                    float *  c, int ldc )
 {
