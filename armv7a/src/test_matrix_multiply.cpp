@@ -22,7 +22,8 @@
 // #include "MMult_4x4_13.h"
 // #include "MMult_4x4_14.h"
 // #include "MMult_4x4_18.h"
-#include "MMult_4x4_19.h"
+// #include "MMult_4x4_19.h"
+#include "MMult_4x4_20.h"
 // #include "convolution1x1s1.h"
 
 #include "dclock.h"
@@ -121,7 +122,7 @@ int main(){
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-            MY_MMult_4x4_19(m, n, k, a, lda, b, ldb, c, ldc);
+            MY_MMult_4x4_20(m, n, k, a, lda, b, ldb, c, ldc);
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
