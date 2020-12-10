@@ -7,7 +7,7 @@ TOP_DIR = .
 TARGET_EXE = unit_test
 
 #CXX_SOURCE += $(TOP_DIR)/src/unit_test_conv.cpp
-CXX_SOURCE += ./test_matrix_multiply.cpp
+CXX_SOURCE += ./test_matrix_multiply_conv1x1.cpp
 
 ####################head file###################
 DEP_INC_DIR += -I$(TOP_DIR)/

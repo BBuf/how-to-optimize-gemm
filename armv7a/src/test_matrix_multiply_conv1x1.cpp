@@ -22,7 +22,7 @@
 // #include "MMult_4x4_13.h"
 // #include "MMult_4x4_14.h"
 // #include "MMult_4x4_18.h"
-#include "MMult_4x4_19.h"
+// #include "MMult_4x4_19.h"
 #include "convolution1x1s1.h"
 
 #include "dclock.h"
@@ -103,8 +103,8 @@ int main(){
         prec = (float *)malloc(ldc * n * sizeof(float));
         nowc = (float *)malloc(ldc * n * sizeof(float));
 
-        int src_tm_channel = n / 8 + (n % 8) / 4 + n % 4;
-        int src_tm_h = 8 * 4;
+        int src_tm_channel = n / 4 + n % 4;
+        int src_tm_h = 4 * 4;
         int src_tm_w = k/4+k%4;
         int src_tm_size = src_tm_h * src_tm_w;
         transformKernel = (float *)malloc((m%4 + m/4) * (m/4 + m%4) * 4 * 4 * sizeof(float));

@@ -80,6 +80,7 @@ fmla: 4x2(mul+add)*1.8gHz=14.4gFLOPs
 ### src
 
 - MMult_4x4_19和MMult_4x4_20来自tpoisonooo(白牛大佬)。
+- 额外测试了conv1x1s1.h（version3）（默认实现为8x4）的4x4分块方法，gflops为4.8gflops。
 
 |文件名|优化方法|gFLOPs|峰值占比|线程数|
 |--|--|--|--|--|
@@ -105,6 +106,11 @@ fmla: 4x2(mul+add)*1.8gHz=14.4gFLOPs
 |conv1x1s1.h（version1）|一次计算多行，neon汇编优化|3.4gflops|31.0%|1|
 |conv1x1s1.h（version2）|pack，kernel提前做，neon汇编优化|4.9gflops|45%|1|
 |conv1x1s1.h（version3）|pack，kernel提前做，输入NC4HW4，neon汇编优化|5.5gflops|50.5%|1|
+
+- 猜测，分块时块的大小需要尽量大，恰好可以塞进Cache能获得最大性能，目前测试情况来看：
+```
+1x1 < 1x4 < 4x4 < 8x4 ...
+```
 
 ## armv8a
 
