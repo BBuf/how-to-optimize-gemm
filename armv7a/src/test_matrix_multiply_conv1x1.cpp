@@ -68,6 +68,7 @@ float compare_matrices( int m, int n, float *a, int lda, float *b, int ldb )
         if(max_diff > 0.5f || max_diff < -0.5f) {
             printf("\n error: i %d  j %d diff %f", i, j, max_diff);
         }
+        
     }
   }
   return max_diff;

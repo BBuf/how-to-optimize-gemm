@@ -104,8 +104,9 @@ fmla: 4x2(mul+add)*1.8gHz=14.4gFLOPs
 |MMult_4x4_19.h|MMult_4x4_18基础上+更长的pld+ldd+指令重排|3.8gflops|34.59%|1|
 |MMult_4x4_20.h|MMult_4x4_19基础上更换vldr + 简单调整ping pong|4.0gflops|36.7%|1|
 |conv1x1s1.h（version1）|一次计算多行，neon汇编优化|3.4gflops|31.0%|1|
-|conv1x1s1.h（version2）|pack，kernel提前做，neon汇编优化|4.9gflops|45%|1|
-|conv1x1s1.h（version3）|pack，kernel提前做，输入NC4HW4，neon汇编优化|5.5gflops|50.5%|1|
+|conv1x1s1.h（version2）|pack，kernel提前做，neon汇编优化，8x4分块|4.9gflops|45%|1|
+|conv1x1s1.h（version3）|pack，kernel提前做，输入NC4HW4，neon汇编优化，8x4分块|5.5gflops|50.5%|1|
+|conv1x1s1.h（version4）|pack，kernel提前做，输入NC4HW4，neon汇编优化，12x4分块|5.2gflops|47.8%|1|
 
 - 猜测，分块时块的大小需要尽量大，恰好可以塞进Cache能获得最大性能，目前测试情况来看：
 ```

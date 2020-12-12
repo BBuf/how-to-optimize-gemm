@@ -1,7 +1,7 @@
 //src conv kernel
 #include <vector>
 #include <iostream>
-#define USE_NEON 0
+#define USE_NEON 1
 #include <arm_neon.h>
 #define USE_OMP 0
 #define OMP_THREAD 2
@@ -81,13 +81,15 @@ void conv1x1s1SgemmTransformInput(float *const &src, const int &inWidth, const i
 #if USE_NEON
             asm volatile(
                 "pld        [%0, #384]          \n"
-                "vld1.f32   {d0-d5}, [%0]       \n"
-                "vst1.f32   {d0-d5}, [%1]!      \n"
+                "vldm       %0, {d0-d5}        \n"
+                "vst1.f32   {d0-d3}, [%1]!      \n"
+                "vst1.f32   {d4-d5}, [%1]!      \n"
+ 
                 : "=r"(srcptr),  // %0
                 "=r"(src_tm_ptr) // %1
                 : "0"(srcptr),
                 "1"(src_tm_ptr)
-                : "memory", "q0", "q1"
+                : "memory", "q0", "q1", "q2"
             );
 #else
             src_tm_ptr[0] = srcptr[0];
@@ -157,7 +159,7 @@ void conv1x1s1SgemmTransformInput(float *const &src, const int &inWidth, const i
 
         const float* srcptr = src + newi;
 
-        float *src_tm_ptr = src_tm + (newi / 12 + (newi % 12) / 4 + newi % 12) * src_tm_size;
+        float *src_tm_ptr = src_tm + (newi / 12 + (newi % 12) / 4 + newi % 4) * src_tm_size;
 
         for(int q = 0; q < inChannel; q++){
 
@@ -206,7 +208,7 @@ void conv1x1s1SgemmNeon(float *const &src, float *const &src_tm ,const int &inWi
 
             int i = 0;
 
-            for(; i + 12 < outSize; i += 12){
+            for(; i + 11 < outSize; i += 12){
                 const float *src_tm_ptr = src_tm + (i / 12) * src_tm_size;
 
                 const float *kernel0 = kernel + (c / 4) *  kernelSize;
@@ -216,73 +218,102 @@ void conv1x1s1SgemmNeon(float *const &src, float *const &src_tm ,const int &inWi
 #if __aarch64__
                 throw Exception(1, "Error: armv8 temporarily not supported!", __FILE__, __LINE__, __FUNCTION__);
 #else
-                asm volatile(
+                 asm volatile(
 
                     "veor       q0, q0, q0          \n"
-                    "vdup.f32   q8, d0[0]           \n"
-                    "vdup.f32   q9, d0[0]           \n"
-                    "vdup.f32   q10, d0[0]          \n"
-                    "vdup.f32   q11, d0[0]          \n"
-
-                    "vdup.f32   q12, d0[0]          \n"
-                    "vdup.f32   q13, d0[0]          \n"
-                    "vdup.f32   q14, d0[0]          \n"
-                    "vdup.f32   q15, d0[0]          \n"
-                    // r4 = inChannnel >> 2
+                    "veor       q4, q4, q4          \n"
+                    "veor       q5, q5, q5          \n"
+                    "veor       q6, q6, q6          \n"
+                    "veor       q7, q7, q7          \n"
+                    "veor       q8, q8, q8          \n"
+                    "veor       q9, q9, q9          \n"
+                    "veor       q10, q10, q10       \n"
+                    "veor       q11, q11, q11       \n"
+                    "veor       q12, q12, q12       \n"
+                    "veor       q13, q13, q13       \n"
+                    "veor       q14, q14, q14       \n"
+                    "veor       q15, q15, q15       \n"
+                
+                    // r4 = inChannnel >> 1
                     "lsr        r4, %12, #2         \n"
                     "cmp        r4, #0              \n"
                     "beq        1f                  \n"
 
                     "0:                             \n"
-                    "pld        [%4, #512]          \n"
-                    "vldm       %4!, {d8-d15}       \n"
+                    //====================================
 
-                    "pld        [%5, #512]          \n"
-                    "vldm       %5!, {d0-d7}        \n"
+                    "pld        [%4, #384]          \n"
+                    "vldm       %4!, {d2-d7}        \n"
 
-                    "vmla.f32   q8, q4, d0[0]       \n"
-                    "vmla.f32   q10, q4, d0[1]      \n"
-                    "vmla.f32   q12, q4, d1[0]      \n"
-                    "vmla.f32   q14, q4, d1[1]      \n"
+                    "pld        [%5, #256]           \n"
+                    "vld1.f32   {d0-d1}, [%5]!      \n"
 
-                    "vmla.f32   q9, q5, d0[0]       \n"
-                    "vmla.f32   q11, q5, d0[1]      \n"
-                    "vmla.f32   q13, q5, d1[0]      \n"
-                    "vmla.f32   q15, q5, d1[1]      \n"
+                    "vmla.f32   q4, q1, d0[0]       \n"
+                    "vmla.f32   q5, q2, d0[0]       \n"
+                    "vmla.f32   q6, q3, d0[0]       \n"
+                    "vmla.f32   q7, q1, d0[1]       \n"
+                    "vmla.f32   q8, q2, d0[1]       \n"
+                    "vmla.f32   q9, q3, d0[1]       \n"
+                    "vmla.f32   q10, q1, d1[0]      \n"
+                    "vmla.f32   q11, q2, d1[0]      \n"
+                    "vmla.f32   q12, q3, d1[0]      \n"
+                    "vmla.f32   q13, q1, d1[1]      \n"
+                    "vmla.f32   q14, q2, d1[1]      \n"
+                    "vmla.f32   q15, q3, d1[1]      \n"
 
-                    "vmla.f32   q8, q6, d2[0]       \n"
-                    "vmla.f32   q10, q6, d2[1]      \n"
-                    "vmla.f32   q12, q6, d3[0]      \n"
-                    "vmla.f32   q14, q6, d3[1]      \n"
+                    //====================================
+                    "vldm       %4!, {d2-d7}        \n"
 
-                    "vmla.f32   q9, q7, d2[0]       \n"
-                    "vmla.f32   q11, q7, d2[1]      \n"
-                    "vmla.f32   q13, q7, d3[0]      \n"
-                    "vmla.f32   q15, q7, d3[1]      \n"
+                    "vld1.f32   {d0-d1}, [%5]!      \n"
 
-                    "pld        [%4, #512]          \n"
-                    "vldm       %4!, {d8-d15}       \n"
+                    "vmla.f32   q4, q1, d0[0]       \n"
+                    "vmla.f32   q5, q2, d0[0]       \n"
+                    "vmla.f32   q6, q3, d0[0]       \n"
+                    "vmla.f32   q7, q1, d0[1]       \n"
+                    "vmla.f32   q8, q2, d0[1]       \n"
+                    "vmla.f32   q9, q3, d0[1]       \n"
+                    "vmla.f32   q10, q1, d1[0]      \n"
+                    "vmla.f32   q11, q2, d1[0]      \n"
+                    "vmla.f32   q12, q3, d1[0]      \n"
+                    "vmla.f32   q13, q1, d1[1]      \n"
+                    "vmla.f32   q14, q2, d1[1]      \n"
+                    "vmla.f32   q15, q3, d1[1]      \n"
+                    //====================================
+                    "pld        [%4, #384]          \n"
+                    "vldm       %4!, {d2-d7}        \n"
 
-                    "vmla.f32   q8, q4, d4[0]       \n"
-                    "vmla.f32   q10, q4, d4[1]      \n"
-                    "vmla.f32   q12, q4, d5[0]      \n"
-                    "vmla.f32   q14, q4, d5[1]      \n"
+                    "vld1.f32   {d0-d1}, [%5]!      \n"
 
-                    "vmla.f32   q9, q5, d4[0]       \n"
-                    "vmla.f32   q11, q5, d4[1]      \n"
-                    "vmla.f32   q13, q5, d5[0]      \n"
-                    "vmla.f32   q15, q5, d5[1]      \n"
+                    "vmla.f32   q4, q1, d0[0]       \n"
+                    "vmla.f32   q5, q2, d0[0]       \n"
+                    "vmla.f32   q6, q3, d0[0]       \n"
+                    "vmla.f32   q7, q1, d0[1]       \n"
+                    "vmla.f32   q8, q2, d0[1]       \n"
+                    "vmla.f32   q9, q3, d0[1]       \n"
+                    "vmla.f32   q10, q1, d1[0]      \n"
+                    "vmla.f32   q11, q2, d1[0]      \n"
+                    "vmla.f32   q12, q3, d1[0]      \n"
+                    "vmla.f32   q13, q1, d1[1]      \n"
+                    "vmla.f32   q14, q2, d1[1]      \n"
+                    "vmla.f32   q15, q3, d1[1]      \n"
+                    //====================================
+                    "vldm       %4!, {d2-d7}        \n"
 
-                    "vmla.f32   q8, q6, d6[0]       \n"
-                    "vmla.f32   q10, q6, d6[1]      \n"
-                    "vmla.f32   q12, q6, d7[0]      \n"
-                    "vmla.f32   q14, q6, d7[1]      \n"
+                    "vld1.f32   {d0-d1}, [%5]!      \n"
 
-                    "vmla.f32   q9, q7, d6[0]       \n"
-                    "vmla.f32   q11, q7, d6[1]      \n"
-                    "vmla.f32   q13, q7, d7[0]      \n"
-                    "vmla.f32   q15, q7, d7[1]      \n"
-
+                    "vmla.f32   q4, q1, d0[0]       \n"
+                    "vmla.f32   q5, q2, d0[0]       \n"
+                    "vmla.f32   q6, q3, d0[0]       \n"
+                    "vmla.f32   q7, q1, d0[1]       \n"
+                    "vmla.f32   q8, q2, d0[1]       \n"
+                    "vmla.f32   q9, q3, d0[1]       \n"
+                    "vmla.f32   q10, q1, d1[0]      \n"
+                    "vmla.f32   q11, q2, d1[0]      \n"
+                    "vmla.f32   q12, q3, d1[0]      \n"
+                    "vmla.f32   q13, q1, d1[1]      \n"
+                    "vmla.f32   q14, q2, d1[1]      \n"
+                    "vmla.f32   q15, q3, d1[1]      \n"
+                    //====================================
                     "subs       r4, r4, #1          \n"
                     "bne        0b                  \n"
 
@@ -294,21 +325,24 @@ void conv1x1s1SgemmNeon(float *const &src, float *const &src_tm ,const int &inWi
 
                     "2:                             \n"
 
-                    "pld        [%4, #256]          \n"
-                    "vld1.f32   {d8-d11}, [%4]!     \n"
+                    "pld        [%4, #192]          \n"
+                    "vldm       %4!, {d2-d7}        \n"
 
-                    "pld        [%5, #128]          \n"
+                    "pld        [%5, #64]           \n"
                     "vld1.f32   {d0-d1}, [%5]!      \n"
 
-                    "vmla.f32   q8, q4, d0[0]       \n"
-                    "vmla.f32   q10, q4, d0[1]      \n"
-                    "vmla.f32   q12, q4, d1[0]      \n"
-                    "vmla.f32   q14, q4, d1[1]      \n"
-
-                    "vmla.f32   q9, q5, d0[0]       \n"
-                    "vmla.f32   q11, q5, d0[1]      \n"
-                    "vmla.f32   q13, q5, d1[0]      \n"
-                    "vmla.f32   q15, q5, d1[1]      \n"
+                    "vmla.f32   q4, q1, d0[0]       \n"
+                    "vmla.f32   q5, q2, d0[0]       \n"
+                    "vmla.f32   q6, q3, d0[0]       \n"
+                    "vmla.f32   q7, q1, d0[1]       \n"
+                    "vmla.f32   q8, q2, d0[1]       \n"
+                    "vmla.f32   q9, q3, d0[1]       \n"
+                    "vmla.f32   q10, q1, d1[0]      \n"
+                    "vmla.f32   q11, q2, d1[0]      \n"
+                    "vmla.f32   q12, q3, d1[0]      \n"
+                    "vmla.f32   q13, q1, d1[1]      \n"
+                    "vmla.f32   q14, q2, d1[1]      \n"
+                    "vmla.f32   q15, q3, d1[1]      \n"
 
                     
                     "subs       r4, r4, #1          \n"
@@ -317,11 +351,14 @@ void conv1x1s1SgemmNeon(float *const &src, float *const &src_tm ,const int &inWi
 
                     "3:                             \n"
 
-                    "vst1.f32   {d16-d19}, [%0]!   \n"
-                    "vst1.f32   {d20-d23}, [%1]!   \n"
-                    "vst1.f32   {d24-d27}, [%2]!   \n"
-                    "vst1.f32   {d28-d31}, [%3]!   \n"
-                    
+                    "vst1.f32   {d8-d11},   [%0]!   \n"
+                    "vst1.f32   {d12-d13},  [%0]!   \n"
+                    "vst1.f32   {d14-d17},  [%1]!   \n"
+                    "vst1.f32   {d18-d19},  [%1]!   \n"
+                    "vst1.f32   {d20-d23},  [%2]!   \n"
+                    "vst1.f32   {d24-d25},  [%2]!   \n"
+                    "vst1.f32   {d26-d29},  [%3]!   \n"
+                    "vst1.f32   {d30-d31},  [%3]!   \n"
 
                     : "=r"(destptr0), // %0
                     "=r"(destptr1), // %1
@@ -512,6 +549,7 @@ void conv1x1s1SgemmNeon(float *const &src, float *const &src_tm ,const int &inWi
             }
 
             for(; i + 3 < outSize; i += 4){
+
                 const float *src_tm_ptr = src_tm + ((i / 12) + (i % 12) / 4) * src_tm_size;
                 const float *kernel0 = kernel + (c / 4) *  kernelSize;
 

@@ -105,8 +105,8 @@ void kernel_4x4_v3(int m, int n, int k,
 
                     "0:                               \n"
 
-                    "pld        [%5, #512]            \n"
-                    "pld        [%6, #512]            \n"
+                    "pld        [%5, #256]            \n"
+                    "pld        [%6, #256]            \n"
                     "vld1.f32   {d8}, [%6]!        \n"
                     "vld1.f32   {d0}, [%5]!        \n"
                     "vld1.f32   {d1}, [%5]!        \n"
