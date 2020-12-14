@@ -113,6 +113,10 @@ fmla: 4x2(mul+add)*1.8gHz=14.4gFLOPs
 1x1 < 1x4 < 4x4 < 8x4 ...
 ```
 
+- 测试了12x4，发现并不是这样，和MegEngine的大佬交流之后知道A53的硬件利用率极限是75%，另外ldq和fmla不能双发射，所以需要将指令拆成ldx和ldr+ins，因为ldx可以和fmla双发射，ldr和ins可以双发射，就可以突破到75%，待编码验证。
+
+- 为什么A53极限硬件利用率为75%，因为ldr和ins都不能和fmla双发射，所以每3条fmla就需要带一条ldr+ins，fmla的吞吐极限就是3/4。
+
 ## armv8a
 
 
