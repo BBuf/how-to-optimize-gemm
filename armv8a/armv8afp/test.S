@@ -11,6 +11,7 @@ TEST:
     fmla v2.4s, v2.4s, v2.4s
     fmla v3.4s, v3.4s, v3.4s
 
+    subs x0, x0, #1
     fmla v4.4s, v4.4s, v4.4s
     fmla v5.4s, v5.4s, v5.4s
     fmla v6.4s, v6.4s, v6.4s
@@ -19,5 +20,5 @@ TEST:
     fmla v8.4s, v8.4s, v8.4s
     fmla v9.4s, v9.4s, v9.4s
 
-    subs r0,r0,    #1
+
     bne .loop2
