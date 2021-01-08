@@ -5,6 +5,7 @@
 #include "matrix_multiply_origin.h"
 // #include "MMult1.h"
 #include "MMult2.h"
+// #include "MMult_1x4_3.h"
 
 #include "dclock.h"
 using namespace std;
@@ -93,7 +94,7 @@ int main(){
         copy_matrix(m, n, prec, ldc, nowc, ldc);
 
         // 以nowc为基准，判断矩阵运行算结果是否正确
-        MY_MMult2(m, n, k, a, lda, b, ldb, nowc, ldc);
+        MatrixMultiply(m, n, k, a, lda, b, ldb, nowc, ldc);
 
         // 循环20次，以最快的运行时间为结果
         for(int j=0; j < 20; j++){
