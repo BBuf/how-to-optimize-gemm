@@ -137,6 +137,8 @@ fmla: 4x2(mul+add)*1.55gHz=12.4gFLOPs （Jetson Nano）
 |文件名|优化方法|gFLOPs|峰值占比|线程数|
 |--|--|--|--|--|
 |MMult1.h|无任何优化|0.75gflops|6.5%|1|
+|MMult2.h|一次计算4个元素|0.82gflops|7.2%|1|
+
 
 # 相关链接
 - https://github.com/tpoisonooo/how-to-optimize-gemm/tree/master/src/HowToOptimizeGemm
