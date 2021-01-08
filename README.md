@@ -58,7 +58,6 @@ sse fp64 perf: 46.6798 gflops.
 |MMult_4x4_13.h|SSE指令集优化, 对矩阵A和B进行Pack，这样就可以连续访问内存|33.0gflops|34.0%|1|
 
 
-
 ## armv7a
 
 ### armv7afp
@@ -119,7 +118,25 @@ fmla: 4x2(mul+add)*1.8gHz=14.4gFLOPs
 
 ## armv8a
 
+### armv8afp
 
+```markdown
+理论浮点峰值: 
+
+fmla: 4x2(mul+add)*1.55gHz=12.4gFLOPs （Jetson Nano）
+
+|架构|浮点峰值(GFlops)|
+|--|--|
+|Cortex-A57，armv8a|11.39|
+
+达到硬件浮点峰值的91.8%
+```
+
+### src
+
+|文件名|优化方法|gFLOPs|峰值占比|线程数|
+|--|--|--|--|--|
+|MMult1.h|无任何优化|0.7gflops|6.0%|1|
 
 # 相关链接
 - https://github.com/tpoisonooo/how-to-optimize-gemm/tree/master/src/HowToOptimizeGemm
