@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include "matrix_multiply_origin.h"
+#include "MMult1.h"
 
 #include "dclock.h"
 using namespace std;
@@ -100,7 +101,7 @@ int main(){
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-            MatrixMultiply(m, n, k, a, lda, b, ldb, c, ldc);
+            MY_MMult1(m, n, k, a, lda, b, ldb, c, ldc);
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
