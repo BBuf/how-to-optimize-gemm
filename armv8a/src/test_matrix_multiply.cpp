@@ -4,8 +4,9 @@
 #include <iostream>
 #include "matrix_multiply_origin.h"
 // #include "MMult1.h"
-#include "MMult2.h"
+// #include "MMult2.h"
 // #include "MMult_1x4_3.h"
+#include "MMult_1x4_4.h"
 
 #include "dclock.h"
 using namespace std;
@@ -51,7 +52,7 @@ float compare_matrices( int m, int n, float *a, int lda, float *b, int ldb )
         }
     }
   }
-  return max_diff;
+  return max_diff; 
 }
 
 static double get_time(struct timespec *start,
@@ -103,7 +104,7 @@ int main(){
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-            MY_MMult2(m, n, k, a, lda, b, ldb, c, ldc);
+            MY_MMult_1x4_4(m, n, k, a, lda, b, ldb, c, ldc);
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
