@@ -60,7 +60,7 @@ void AddDot1x4( int k, float *a, int lda,  float *b, int ldb, float *c, int ldc 
     c_02_reg += b_0p_reg * *ap2_pntr++;
     c_03_reg += b_0p_reg * *ap3_pntr++;
 
-    b_0p_reg = B( p+3,
+    b_0p_reg = B( p+3, 0);
 
     c_00_reg += b_0p_reg * *ap0_pntr++;
     c_01_reg += b_0p_reg * *ap1_pntr++;
