@@ -143,6 +143,15 @@ fmla: 4x2(mul+add)*1.55gHz=12.4gFLOPs （Jetson Nano）
 |MMult_1x4_5.h|一次计算4个元素(将4个循环合并为1个)|1.57gflops|13.8%|1|
 |MMult_1x4_7.h|一次计算4个元素(我们在寄存器中累加C的元素，并对A的元素使用寄存器),用指针来寻址B中的元素|1.92gflops|16.8%|1|
 |MMult_1x4_8.h|在MMult_1x4_7的基础上循环展开四个（展开因子的相对任意选择）|1.28gflops|11.2%|1|
+|MMult_4x4_3.h|一次计算C中的4x4小块|0.75gflops|6.5%|1|
+|MMult_4x4_4.h|一次计算C中的4x4小块|0.80gflops|7.0%|1|
+|MMult_4x4_5.h|一次计算C中的4x4小块,将16个循环合并一个|1.26gflops|11.0%|1|
+|MMult_4x4_6.h|一次计算C中的4x4小块(我们在寄存器中累加C的元素，并对a的元素使用寄存器)|4.29gflops|37.6%|1|
+|MMult_4x4_7.h|在MMult_4x4_6的基础上用指针来寻址B中的元素|4.12gflops|36.0%|1|
+|MMult_4x4_8.h|使用更多的寄存器|4.3gflops|37.7%|1|
+|MMult_4x4_10.h|NEON指令集优化|4.3gflops|37.7%|1|
+|MMult_4x4_11.h|NEON指令集优化, 并且为了保持较小问题规模所获得的性能，我们分块矩阵C（以及相应的A和B） |4.3gflops|37.7%|1
+|
 
 # 相关链接
 - https://github.com/tpoisonooo/how-to-optimize-gemm/tree/master/src/HowToOptimizeGemm
