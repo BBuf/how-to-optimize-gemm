@@ -141,7 +141,8 @@ fmla: 4x2(mul+add)*1.55gHz=12.4gFLOPs （Jetson Nano）
 |MMult_1x4_3.h|一次计算4个元素|0.8gflops|7.0%|1|
 |MMult_1x4_4.h|一次计算4个元素|0.89gflops|7.8%|1|
 |MMult_1x4_5.h|一次计算4个元素(将4个循环合并为1个)|1.57gflops|13.8%|1|
-
+|MMult_1x4_7.h|一次计算4个元素(我们在寄存器中累加C的元素，并对A的元素使用寄存器),用指针来寻址B中的元素|1.92gflops|16.8%|1|
+|MMult_1x4_8.h|在MMult_1x4_7的基础上循环展开四个（展开因子的相对任意选择）|1.28gflops|11.2%|1|
 
 # 相关链接
 - https://github.com/tpoisonooo/how-to-optimize-gemm/tree/master/src/HowToOptimizeGemm
