@@ -17,7 +17,7 @@ OBJ_C := $(patsubst %.c, %.o, $(C_SOURCE))
 
 DEFINE_MACRO := 
 
-CPPFLAGS := -std=c++11 -O3 -march=armv8-a -ftree-vectorize
+CPPFLAGS := -Wall -fpermissive -std=c++11 -O3 -march=armv8-a -ftree-vectorize
 CPPFLAGS += $(DEP_INC_DIR) $(DEFINE_MACRO) 
 CFLAGS += $(DEP_INC_DIR) $(DEFINE_MACRO) 
 
